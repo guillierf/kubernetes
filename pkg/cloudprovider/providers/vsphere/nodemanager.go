@@ -29,6 +29,9 @@ type NodeInfo struct {
 }
 
 type NodeManager struct {
+	// Maps the VC server to VSphereInstance
+	vsphereInstanceMap map[string]*VSphereInstance
+	// Maps node name to node info.
 	nodeInfoMap map[string]*NodeInfo
 }
 

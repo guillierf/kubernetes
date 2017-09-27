@@ -66,7 +66,7 @@ func GetVSphere() (*VSphere, error) {
 		},
 	}
 	vsphereInsMap := make(map[string]*VSphereInstance)
-	vsphereInsMap["global"] = vsphereIns
+	vsphereInsMap[""] = vsphereIns
 	vs := &VSphere{
 		vsphereInstanceMap: vsphereInsMap,
 		hostName: "",

@@ -331,7 +331,9 @@ func newControllerNode(cfg VSphereConfig) (*VSphere, error) {
 
 	vs := VSphere{
 		vsphereInstanceMap: vsphereInstanceMap,
-		nodeManager: &NodeManager{},
+		nodeManager: &NodeManager{
+			vsphereInstanceMap: vsphereInstanceMap,
+		},
 		cfg: &cfg,
 	}
 
@@ -340,8 +342,6 @@ func newControllerNode(cfg VSphereConfig) (*VSphere, error) {
 		glog.Errorf("Failed to get hostname. err: %+v", err)
 		return nil, err
 	}
-	glog.V(4).Infof("VSphere is %+v", vs)
-
 	runtime.SetFinalizer(&vs, logout)
 	return &vs, nil
 }
