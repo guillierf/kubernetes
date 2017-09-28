@@ -62,8 +62,8 @@ var cleanUpDummyVMLock sync.RWMutex
 
 // VSphere is an implementation of cloud provider Interface for VSphere.
 type VSphere struct {
-	cfg *VSphereConfig
-	hostName  string
+	cfg      *VSphereConfig
+	hostName string
 	// Stores the VSphereInstance per vcenter
 	vsphereInstanceMap map[string]*VSphereInstance
 	// Responsible for managing k8s node their location etc.
@@ -333,6 +333,8 @@ func newControllerNode(cfg VSphereConfig) (*VSphere, error) {
 		vsphereInstanceMap: vsphereInstanceMap,
 		nodeManager: &NodeManager{
 			vsphereInstanceMap: vsphereInstanceMap,
+			nodeInfoMap:        make(map[string]*NodeInfo),
+			registeredNodes:    make(map[string]*v1.Node),
 		},
 		cfg: &cfg,
 	}
@@ -400,8 +402,8 @@ func getLocalIP() ([]v1.NodeAddress, error) {
 }
 
 func (vs *VSphere) getVSphereInstance(nodeName k8stypes.NodeName) (*VSphereInstance, error) {
-	vsphereIns := vs.vsphereInstanceMap[nodeNameToVMName(nodeName)]
-	if vsphereIns == nil {
+	vsphereIns, err := vs.nodeManager.GetVSphereInstance(nodeName)
+	if err != nil {
 		glog.Errorf("Cannot find node %q in cache. Node not found!!!", nodeName)
 		return nil, errors.New(fmt.Sprintf("Cannot find node %q in vsphere configuration map", nodeName))
 	}
@@ -410,7 +412,7 @@ func (vs *VSphere) getVSphereInstance(nodeName k8stypes.NodeName) (*VSphereInsta
 
 // Get the VM Managed Object instance by from the node
 func (vs *VSphere) getVMByName(ctx context.Context, nodeName k8stypes.NodeName) (*vclib.VirtualMachine, error) {
-	nodeInfo, err := vs.nodeManager.getNodeInfo(nodeName)
+	nodeInfo, err := vs.nodeManager.GetNodeInfo(nodeName)
 	if err != nil {
 		return nil, err
 	}
@@ -485,7 +487,6 @@ func (vs *VSphere) InstanceID(nodeName k8stypes.NodeName) (string, error) {
 
 	// TODO: Need to see what to do if nodename and localNodeName are not matching.
 	// return "", cloudprovider.InstanceNotFound
-
 
 	// TODO: Below logic is the existing logic.
 	//if vs.localInstanceID == nodeNameToVMName(nodeName) {
@@ -896,11 +897,11 @@ func (vs *VSphere) HasClusterID() bool {
 // Notification handler when node is registered.
 func (vs *VSphere) NodeRegistered(node *v1.Node) {
 	glog.V(4).Infof("Node Registered: %+v", node)
-	vs.nodeManager.registerNode(node)
+	vs.nodeManager.RegisterNode(node)
 }
 
 // Notification handler when node is unregistered.
 func (vs *VSphere) NodeUnregistered(node *v1.Node) {
 	glog.V(4).Infof("Node Unregistered: %+v", node)
-	vs.nodeManager.unregisterNode(node)
+	vs.nodeManager.UnregisterNode(node)
 }

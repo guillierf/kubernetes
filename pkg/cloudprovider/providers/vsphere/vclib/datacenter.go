@@ -48,6 +48,11 @@ func GetDatacenter(ctx context.Context, connection *VSphereConnection, datacente
 	return &dc, nil
 }
 
+// TODO: Implement it!
+func GetAllDatacenters(ctx context.Context, connection *VSphereConnection) ([]*Datacenter, error) {
+	return nil, nil
+}
+
 // GetVMByUUID gets the VM object from the given vmUUID
 func (dc *Datacenter) GetVMByUUID(ctx context.Context, vmUUID string) (*VirtualMachine, error) {
 	s := object.NewSearchIndex(dc.Client())
