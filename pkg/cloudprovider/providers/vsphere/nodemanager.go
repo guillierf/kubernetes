@@ -49,6 +49,11 @@ type NodeManager struct {
 	nodeInfoLock        sync.RWMutex
 }
 
+type NodeDetails struct {
+	NodeName string
+	vm       *vclib.VirtualMachine
+}
+
 // TODO: Make it configurable in vsphere.conf
 const (
 	POOL_SIZE  = 8
@@ -220,18 +225,21 @@ func (nm *NodeManager) GetNodeInfo(nodeName k8stypes.NodeName) (NodeInfo, error)
 		if err != nil {
 			return NodeInfo{}, fmt.Errorf("error %q node info for node %q not found", err, convertToString(nodeName))
 		}
+		nm.nodeInfoLock.RLock()
+		nodeInfo = nm.nodeInfoMap[convertToString(nodeName)]
+		nm.nodeInfoLock.RUnlock()
 	}
 	return *nodeInfo, nil
 }
 
-func (nm *NodeManager) GetNodeVms() []*vclib.VirtualMachine {
+func (nm *NodeManager) GetNodeDetails() []NodeDetails {
 	nm.nodeInfoLock.RLock()
 	defer nm.nodeInfoLock.RUnlock()
-	var nodeVms []*vclib.VirtualMachine
-	for _, nodeInfo := range nm.nodeInfoMap {
-		nodeVms = append(nodeVms, nodeInfo.vm)
+	var nodeDetails []NodeDetails
+	for nodeName, nodeInfo := range nm.nodeInfoMap {
+		nodeDetails = append(nodeDetails, NodeDetails{nodeName, nodeInfo.vm})
 	}
-	return nodeVms
+	return nodeDetails
 }
 
 func (nm *NodeManager) addNodeInfo(nodeName string, nodeInfo *NodeInfo) {
