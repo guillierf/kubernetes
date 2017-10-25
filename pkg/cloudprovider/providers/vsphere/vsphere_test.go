@@ -39,7 +39,7 @@ func configFromEnv() (cfg VSphereConfig, ok bool) {
 	cfg.Global.Password = os.Getenv("VSPHERE_PASSWORD")
 	cfg.Global.Datacenter = os.Getenv("VSPHERE_DATACENTER")
 	cfg.Network.PublicNetwork = os.Getenv("VSPHERE_PUBLIC_NETWORK")
-	cfg.Global.Datastore = os.Getenv("VSPHERE_DATASTORE")
+	cfg.Global.DefaultDatastore = os.Getenv("VSPHERE_DATASTORE")
 	cfg.Disk.SCSIControllerType = os.Getenv("VSPHERE_SCSICONTROLLER_TYPE")
 	cfg.Global.WorkingDir = os.Getenv("VSPHERE_WORKING_DIR")
 	cfg.Global.VMName = os.Getenv("VSPHERE_VM_NAME")

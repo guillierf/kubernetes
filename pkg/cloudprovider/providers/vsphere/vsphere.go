@@ -35,6 +35,12 @@ import (
 	"golang.org/x/net/context"
 	"k8s.io/api/core/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/informers"
+	coreinformers "k8s.io/client-go/informers/core/v1"
+	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 	v1helper "k8s.io/kubernetes/pkg/api/v1/helper"
 	"k8s.io/kubernetes/pkg/cloudprovider"
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/vsphere/vclib"
@@ -68,6 +74,10 @@ type VSphere struct {
 	vsphereInstanceMap map[string]*VSphereInstance
 	// Responsible for managing discovery of k8s node, their location etc.
 	nodeManager *NodeManager
+
+	clientBuilder controller.ControllerClientBuilder
+	client        clientset.Interface
+	nodeInformer  coreinformers.NodeInformer
 }
 
 // Represents a vSphere instance where one or more kubernetes nodes are running.
@@ -203,7 +213,29 @@ func init() {
 }
 
 // Initialize passes a Kubernetes clientBuilder interface to the cloud provider
-func (vs *VSphere) Initialize(clientBuilder controller.ControllerClientBuilder) {}
+func (vs *VSphere) Initialize(clientBuilder controller.ControllerClientBuilder) {
+	if vs.cfg == nil {
+		return
+	}
+
+	// Only on controller node it is required to register listeners.
+	var err error
+	vs.clientBuilder = clientBuilder
+	vs.client, err = clientBuilder.Client("vSphere-cloud-provider")
+	if err != nil {
+		utilruntime.HandleError(fmt.Errorf("failed to create kubeclient: %v", err))
+	}
+
+	// Register callbacks for node updates
+	factory := informers.NewSharedInformerFactory(vs.client, 5*time.Minute)
+	vs.nodeInformer = factory.Core().V1().Nodes()
+	vs.nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    vs.NodeAdded,
+		DeleteFunc: vs.NodeDeleted,
+	})
+	go vs.nodeInformer.Informer().Run(wait.NeverStop)
+   glog.V(4).Infof("vSphere cloud provider initialized")
+}
 
 // Creates new worker node interface and returns
 func newWorkerNode() (*VSphere, error) {
@@ -368,8 +400,8 @@ func newControllerNode(cfg VSphereConfig) (*VSphere, error) {
 		vsphereInstanceMap: vsphereInstanceMap,
 		nodeManager: &NodeManager{
 			vsphereInstanceMap: vsphereInstanceMap,
-			nodeInfoMap: make(map[string]*NodeInfo),
-			registeredNodes: make(map[string]*v1.Node),
+			nodeInfoMap:        make(map[string]*NodeInfo),
+			registeredNodes:    make(map[string]*v1.Node),
 		},
 		cfg: &cfg,
 	}
@@ -928,14 +960,25 @@ func (vs *VSphere) HasClusterID() bool {
 	return true
 }
 
-// Notification handler when node is registered.
-func (vs *VSphere) NodeRegistered(node *v1.Node) {
-	glog.V(4).Infof("Node Registered: %+v", node)
+// Notification handler when node is added into k8s cluster.
+func (vs *VSphere) NodeAdded(obj interface{}) {
+	node, ok := obj.(*v1.Node)
+	if node == nil || !ok {
+		return
+	}
+
+	glog.V(4).Infof("Node added: %+v", node)
 	vs.nodeManager.RegisterNode(node)
 }
 
-// Notification handler when node is unregistered.
-func (vs *VSphere) NodeUnregistered(node *v1.Node) {
-	glog.V(4).Infof("Node Unregistered: %+v", node)
+// Notification handler when node is removed from k8s cluster.
+func (vs *VSphere) NodeDeleted(obj interface{}) {
+	node, ok := obj.(*v1.Node)
+	if node == nil || !ok {
+		return
+	}
+
+	glog.V(4).Infof("Node deleted: %+v", node)
 	vs.nodeManager.UnRegisterNode(node)
 }
+
