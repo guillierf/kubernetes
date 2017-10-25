@@ -18,6 +18,10 @@ package storage
 
 import (
 	"fmt"
+	"os"
+	"strconv"
+	"sync"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"k8s.io/api/core/v1"
@@ -28,9 +32,6 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/vsphere"
 	"k8s.io/kubernetes/test/e2e/framework"
-	"os"
-	"strconv"
-	"sync"
 )
 
 /*
@@ -159,7 +160,7 @@ func PerformVolumeLifeCycleInParallel(f *framework.Framework, client clientset.I
 
 		By(fmt.Sprintf("%v Creating Pod using the claim: %v", logPrefix, pvclaim.Name))
 		// Create pod to attach Volume to Node
-		pod, err := framework.CreatePod(client, namespace, pvclaims, false, "")
+		pod, err := framework.CreatePod(client, namespace, nil, pvclaims, false, "")
 		Expect(err).NotTo(HaveOccurred())
 
 		By(fmt.Sprintf("%v Waiting for the Pod: %v to be in the running state", logPrefix, pod.Name))
